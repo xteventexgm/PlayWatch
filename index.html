@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Mi App Streaming</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; img-src * data: blob:; media-src * blob:; frame-src *;"
+    />
+
+    <style>
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        background-color: black;
+      }
+
+      /* MODO CINE */
+      body.modo-cine .btn-menu,
+      body.modo-cine .sidebar {
+        display: none !important;
+      }
+      body.modo-cine #visor-web {
+        position: fixed;
+        z-index: 99999;
+      }
+
+      /* Estilos Visuales */
+      *:focus {
+        outline: 4px solid #e50914 !important;
+        box-shadow: 0 0 10px #e50914 !important;
+      }
+
+      #visor-web {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        z-index: 1;
+        background-color: #111;
+      }
+
+      /* --- ELIMINADO: ESTILOS DE PISTA VISUAL --- */
+
+      /* Botón Flotante */
+      .btn-menu {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 100;
+        background-color: rgba(229, 9, 20, 0.8);
+        color: white;
+        border: none;
+        font-size: 24px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+
+      /* Menú Lateral */
+      .sidebar {
+        position: absolute;
+        top: 0;
+        right: -350px;
+        width: 300px;
+        height: 100vh;
+        background-color: rgba(20, 20, 20, 0.98);
+        z-index: 99;
+        transition: right 0.3s ease;
+        padding-top: 80px;
+        text-align: left;
+      }
+      .sidebar.abierto {
+        right: 0;
+      }
+
+      /* Listas y Botones */
+      ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .categoria-titulo {
+        padding: 15px 20px;
+        color: #ddd;
+        background-color: #333;
+        border-bottom: 1px solid #444;
+      }
+      .categoria-titulo:focus {
+        background-color: #e50914;
+        color: white;
+      }
+
+      .submenu {
+        display: none;
+        background-color: #111;
+      }
+      .submenu.mostrar {
+        display: block;
+      }
+      .submenu li button {
+        width: 100%;
+        padding: 15px 30px;
+        background: none;
+        border: none;
+        color: #aaa;
+        font-size: 16px;
+        text-align: left;
+      }
+      .submenu li button:focus {
+        background-color: #333;
+        color: white;
+        border-right: 4px solid #e50914;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe
+      id="visor-web"
+      src="https://la.movie/"
+      frameborder="0"
+      allowfullscreen="true"
+      webkitallowfullscreen="true"
+      mozallowfullscreen="true"
+      allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
+    >
+    </iframe>
+
+    <button class="btn-menu" onclick="toggleMenu()">&#8862;</button>
+
+    <div class="sidebar" id="miSidebar">
+      <ul>
+        <li
+          class="categoria-titulo"
+          onclick="toggleSubmenu('sub-pelis')"
+          tabindex="1"
+        >
+          ▶ Películas y Series
+        </li>
+        <ul id="sub-pelis" class="submenu">
+          <li>
+            <button onclick="cargarSitio('https://la.movie/')" tabindex="2">
+              La Movie
+            </button>
+          </li>
+          <li>
+            <button
+              onclick="cargarSitio('https://m.animeflv.net/')"
+              tabindex="3"
+            >
+              AnimeFLV
+            </button>
+          </li>
+          <li>
+            <button
+              onclick="cargarSitio('https://www.pelisplus2.gifts/')"
+              tabindex="4"
+            >
+              PelisPlus
+            </button>
+          </li>
+          <li>
+            <button
+              onclick="cargarSitio('https://cue.cuevana3.nu/')"
+              tabindex="4"
+            >
+              Cuevana 3
+            </button>
+          </li>
+          <li>
+            <button
+              onclick="cargarSitio('https://pelisflix1.art/')"
+              tabindex="4"
+            >
+              PelisFlix
+            </button>
+          </li>
+        </ul>
+      </ul>
+
+      <ul>
+        <li
+          class="categoria-titulo"
+          onclick="toggleSubmenu('sub-tv')"
+          tabindex="5"
+        >
+          ▶ TV en Vivo (IPTV)
+        </li>
+        <ul id="sub-tv" class="submenu">
+          <li>
+            <button onclick="cargarSitio('tvplayer.html')" tabindex="6">
+              ★ Mi TV Player (IPTV)
+            </button>
+          </li>
+        </ul>
+      </ul>
+    </div>
+
+    <script>
+      const KEY_BACK = 461;
+      const KEY_RED = 403;
+
+      window.addEventListener("keydown", function (e) {
+        var menu = document.getElementById("miSidebar");
+        // BOTÓN ROJO (Emergencia)
+        if (e.keyCode === KEY_RED) {
+          if (!menu.classList.contains("abierto")) toggleMenu();
+          setTimeout(function () {
+            document.querySelector(".categoria-titulo").focus();
+          }, 100);
+        }
+        // BOTÓN ATRÁS
+        if (e.keyCode === KEY_BACK) {
+          if (menu.classList.contains("abierto")) {
+            toggleMenu();
+            e.preventDefault();
+          }
+        }
+      });
+
+      function toggleMenu() {
+        var menu = document.getElementById("miSidebar");
+        var btn = document.querySelector(".btn-menu");
+        menu.classList.toggle("abierto");
+        if (menu.classList.contains("abierto")) {
+          document.querySelector(".categoria-titulo").focus();
+        } else {
+          btn.focus();
+        }
+      }
+
+      function toggleSubmenu(id) {
+        document.getElementById(id).classList.toggle("mostrar");
+      }
+
+      function cargarSitio(url) {
+        var iframe = document.getElementById("visor-web");
+        // Recarga limpia
+        iframe.src = "";
+        setTimeout(function () {
+          iframe.src = url;
+        }, 50);
+        toggleMenu();
+      }
+
+      window.onload = function () {
+        document.querySelector(".btn-menu").focus();
+      };
+
+      // Escucha para pantalla completa desde el IPTV
+      window.addEventListener("message", function (event) {
+        if (event.data === "toggleFullScreen") {
+          document.body.classList.toggle("modo-cine");
+        }
+      });
+    </script>
+  </body>
+</html>

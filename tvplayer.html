@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Super TV Player</title>
+    <meta charset="UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      /* --- ESTILOS GENERALES --- */
+      body {
+        margin: 0;
+        background-color: #0a0a0a;
+        color: #e0e0e0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* --- CLASE MÁGICA PARA PANTALLA COMPLETA VISUAL --- */
+      .falso-fullscreen {
+        position: fixed !important; /* Se sale del flujo normal */
+        top: 0;
+        left: 0;
+        width: 100vw !important; /* 100% del ancho de la ventana */
+        height: 100vh !important; /* 100% del alto de la ventana */
+        background-color: black;
+        z-index: 9999; /* Se pone ENCIMA de todo */
+        border: none;
+      }
+
+      /* Ocultar el cursor y controles extra si quieres limpieza total */
+      .falso-fullscreen video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #111;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #444;
+        border-radius: 4px;
+      }
+
+      /* --- COLUMNA 1: CATEGORÍAS (20%) --- */
+      #col-categories {
+        width: 220px;
+        background-color: #121212;
+        border-right: 1px solid #333;
+        display: flex;
+        flex-direction: column;
+        z-index: 2;
+      }
+
+      .cat-header {
+        padding: 20px;
+        font-size: 18px;
+        font-weight: bold;
+        color: #e50914;
+        border-bottom: 1px solid #333;
+        text-transform: uppercase;
+      }
+
+      .cat-list {
+        overflow-y: auto;
+        flex: 1;
+      }
+
+      .cat-btn {
+        display: block;
+        width: 100%;
+        padding: 15px 20px;
+        background: none;
+        border: none;
+        color: #aaa;
+        text-align: left;
+        cursor: pointer;
+        font-size: 15px;
+        transition: 0.2s;
+      }
+
+      .cat-btn:focus,
+      .cat-btn:hover {
+        background-color: #333;
+        color: white;
+        outline: none;
+        border-left: 4px solid #e50914;
+      }
+
+      .cat-btn.active {
+        background-color: #e50914;
+        color: white;
+        font-weight: bold;
+      }
+
+      /* --- COLUMNA 2: CANALES (25%) --- */
+      #col-channels {
+        width: 320px;
+        background-color: #181818;
+        border-right: 1px solid #333;
+        display: flex;
+        flex-direction: column;
+        z-index: 2;
+      }
+
+      .search-box {
+        padding: 15px;
+        background-color: #222;
+        border-bottom: 1px solid #333;
+      }
+
+      #search-input {
+        width: 100%;
+        padding: 10px;
+        background-color: #000;
+        border: 1px solid #444;
+        color: white;
+        border-radius: 5px;
+        box-sizing: border-box;
+      }
+      #search-input:focus {
+        outline: 2px solid #e50914;
+      }
+
+      .channel-list-container {
+        overflow-y: auto;
+        flex: 1;
+      }
+
+      .channel-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 15px;
+        border-bottom: 1px solid #252525;
+        cursor: pointer;
+        color: #ccc;
+      }
+
+      .channel-item:focus,
+      .channel-item:hover {
+        background-color: #444;
+        color: white;
+        outline: none;
+      }
+
+      .channel-item.playing {
+        color: #e50914;
+        font-weight: bold;
+      }
+
+      .fav-icon {
+        padding: 5px;
+        color: #555;
+        font-size: 14px;
+      }
+      .fav-icon.is-fav {
+        color: gold;
+      }
+
+      /* --- COLUMNA 3: REPRODUCTOR (RESTO) --- */
+      /* --- COLUMNA 3: REPRODUCTOR --- */
+      #col-player {
+        flex: 1;
+        background-color: black;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        width: 100%; /* Asegurar ancho */
+        height: 100%; /* Asegurar alto */
+      }
+
+      video {
+        width: 100%;
+        height: 100%;
+        max-height: 100vh;
+        outline: none;
+        background-color: black; /* Fondo negro para evitar bordes blancos */
+        object-fit: contain; /* Mantiene la proporción del video sin estirarlo feo */
+      }
+
+      /* Mensaje estado */
+      #status-msg {
+        position: absolute;
+        font-size: 20px;
+        color: #666;
+        pointer-events: none;
+      }
+
+      /* Botón Pantalla Completa */
+      #btn-fullscreen {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background-color: rgba(0, 0, 0, 0.6);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        padding: 10px 15px;
+        font-size: 18px;
+        cursor: pointer;
+        border-radius: 5px;
+        z-index: 100;
+        transition: 0.2s;
+      }
+      #btn-fullscreen:hover {
+        background-color: #e50914;
+      }
+
+      /* Info Canal */
+      .channel-info-overlay {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 10px 20px;
+        border-radius: 5px;
+        text-align: right;
+        opacity: 0;
+        transition: opacity 0.5s;
+        z-index: 90;
+      }
+
+      /* =========================================
+           MODO MÓVIL (CORREGIDO - SCROLL TÁCTIL)
+           ========================================= */
+      @media only screen and (max-width: 768px) {
+        /* 1. ESTRUCTURA VERTICAL FIJA */
+        body {
+          flex-direction: column; /* Elementos uno debajo del otro */
+          height: 100vh;
+          height: 100dvh; /* Altura real en móviles */
+          overflow: hidden; /* Evita que toda la página se mueva */
+        }
+
+        /* 2. VIDEO ARRIBA (35% de la pantalla) */
+        #col-player {
+          order: 1;
+          width: 100%;
+          height: 35vh !important;
+          min-height: 200px; /* Para que no desaparezca en horizontal */
+          flex: none; /* No estirar ni encoger */
+          border-bottom: 1px solid #333;
+        }
+
+        /* Ajustes visuales del player móvil */
+        #btn-fullscreen {
+          top: 10px;
+          left: 10px;
+          padding: 8px;
+        }
+        /* ... dentro del @media only screen and (max-width: 768px) ... */
+
+        /* ARREGLO: Hacer que la info no bloquee los clics */
+        .channel-info-overlay {
+          pointer-events: none; /* MAGIA: Los clics atraviesan este cuadro */
+          background: linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 0.8),
+            transparent
+          ); /* Degradado suave */
+          top: 0;
+          left: 0;
+          right: 0;
+          width: 100%;
+          padding: 10px;
+          text-align: left;
+          border-radius: 0;
+        }
+
+        /* Ajustar título para que no sea gigante */
+        .channel-info-overlay h2 {
+          font-size: 14px !important;
+          margin: 0;
+        }
+
+        /* Ocultar la etiqueta "EN VIVO" si molesta mucho en móvil */
+        .channel-info-overlay span {
+          font-size: 10px;
+        }
+
+        /* 3. CATEGORÍAS EN MEDIO (Barra Horizontal) */
+        #col-categories {
+          order: 2;
+          width: 100%;
+          height: 55px !important; /* Altura OBLIGATORIA */
+          min-height: 55px; /* Seguridad extra */
+          flex: none; /* No dejar que se aplaste */
+
+          display: flex;
+          flex-direction: row;
+          overflow-x: auto; /* SCROLL HORIZONTAL */
+          overflow-y: hidden;
+
+          background-color: #1a1a1a;
+          border-bottom: 1px solid #333;
+          border-right: none;
+
+          /* Suavidad en el dedo (iOS/Android) */
+          -webkit-overflow-scrolling: touch;
+        }
+
+        /* Ocultar título, mostrar botones */
+        .cat-header {
+          display: none;
+        }
+
+        .cat-list {
+          display: flex;
+          flex-direction: row;
+          padding: 0 10px;
+          align-items: center;
+        }
+
+        .cat-btn {
+          width: auto;
+          padding: 8px 15px;
+          margin-right: 5px;
+          border-radius: 20px; /* Botones redondeados tipo chip */
+          border: 1px solid #333;
+          background-color: #222;
+          white-space: nowrap; /* Texto en una sola linea */
+          font-size: 13px;
+        }
+
+        /* Estilo botón activo móvil */
+        .cat-btn.active,
+        .cat-btn:focus {
+          background-color: #e50914;
+          color: white;
+          border: 1px solid #e50914;
+          border-left: 1px solid #e50914; /* Reset del borde izquierdo de PC */
+        }
+
+        /* 4. LISTA DE CANALES ABAJO (El resto del espacio) */
+        #col-channels {
+          order: 3;
+          width: 100%;
+          flex: 1; /* Ocupa TODO el espacio sobrante */
+          display: flex;
+          flex-direction: column;
+          overflow: hidden; /* Importante: Contiene el scroll hijo */
+          border-right: none;
+          min-height: 0; /* Truco Flexbox para permitir scroll interno */
+        }
+
+        .search-box {
+          padding: 10px;
+          flex: none; /* No estirar */
+          background-color: #111;
+        }
+
+        .channel-list-container {
+          flex: 1; /* Crece para llenar el hueco */
+          overflow-y: auto; /* SCROLL VERTICAL AQUÍ */
+          -webkit-overflow-scrolling: touch; /* Scroll suave */
+          padding-bottom: 20px; /* Espacio extra al final */
+        }
+
+        .channel-item {
+          padding: 15px;
+          font-size: 15px;
+          border-bottom: 1px solid #222;
+        }
+
+        /* =========================================
+         ARREGLO MÓVIL PARA EL BOTÓN ROJO
+         ========================================= */
+        @media only screen and (max-width: 768px) {
+          /* Mover el botón rojo abajo a la derecha */
+          .btn-menu {
+            top: auto !important; /* Quitarlo de arriba */
+            bottom: 20px !important; /* Ponerlo abajo */
+            width: 45px;
+            height: 45px;
+            font-size: 20px;
+          }
+
+          /* Mover la pista visual ("Menú Apps") también abajo */
+          .pista-visual {
+            top: auto !important;
+            bottom: 25px !important;
+            right: 80px !important; /* Al lado del botón */
+          }
+
+          /* Asegurar que el menú lateral ocupe toda la pantalla al abrirse en móvil */
+          .sidebar {
+            width: 100% !important;
+            right: -100% !important;
+          }
+          .sidebar.abierto {
+            right: 0 !important;
+          }
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="col-categories">
+      <div class="cat-header">Mi TV Cable</div>
+      <div class="cat-list" id="cat-container">
+        <button class="cat-btn" onclick="showFavorites()" id="btn-favs">
+          <i class="fas fa-star"></i> Favoritos
+        </button>
+        <button
+          class="cat-btn active"
+          onclick="filterByCountry('all')"
+          id="btn-all"
+        >
+          <i class="fas fa-globe"></i> Todos
+        </button>
+      </div>
+    </div>
+
+    <div id="col-channels">
+      <div class="search-box">
+        <input
+          type="text"
+          id="search-input"
+          placeholder="Buscar canal..."
+          onkeyup="searchChannel()"
+        />
+      </div>
+      <div class="channel-list-container" id="channel-container">
+        <div style="padding: 20px; text-align: center; color: #666">
+          Cargando lista...
+        </div>
+      </div>
+    </div>
+
+    <div id="col-player">
+      <div id="status-msg">Selecciona un canal</div>
+
+      <video id="video" controls></video>
+
+      <button
+        id="btn-fullscreen"
+        onclick="toggleFullScreen()"
+        title="Pantalla Completa"
+      >
+        <i class="fas fa-expand"></i>
+      </button>
+
+      <div class="channel-info-overlay" id="info-overlay">
+        <h2 id="current-title" style="margin: 0; font-size: 20px"></h2>
+        <span style="color: #e50914; font-weight: bold">EN VIVO</span>
+      </div>
+    </div>
+
+    <script>
+      const PLAYLIST_URL = "https://iptv-org.github.io/iptv/languages/spa.m3u";
+
+      let allChannels = [];
+      let favorites = JSON.parse(localStorage.getItem("myFavs")) || [];
+      let hls;
+      let video = document.getElementById("video");
+
+      // --- 1. CARGAR LISTA ---
+      window.onload = function () {
+        fetch(PLAYLIST_URL)
+          .then((r) => r.text())
+          .then((data) => {
+            parseM3U(data);
+            renderCountries();
+            filterByCountry("all");
+            document.getElementById("search-input").focus();
+          })
+          .catch((e) => {
+            console.error(e);
+            document.getElementById("channel-container").innerText =
+              "Error cargando lista. Verifica tu internet.";
+          });
+      };
+
+      // --- 2. PARSEADOR SEGURO Y LIMPIO ---
+      // --- DICCIONARIO DE TRADUCCIONES (INGLÉS -> ESPAÑOL) ---
+      const categoryTranslations = {
+        Animation: "Animación",
+        Classic: "Clásicos",
+        Comedy: "Comedia",
+        Culture: "Cultura",
+        Documentary: "Documentales",
+        Education: "Educación",
+        Entertainment: "Entretenimiento",
+        Family: "Familia",
+        General: "General",
+        Kids: "Infantil",
+        Legislative: "Legislativo",
+        Lifestyle: "Estilo de Vida",
+        Movies: "Películas",
+        Music: "Música",
+        News: "Noticias",
+        Relax: "Relax",
+        Religious: "Religioso",
+        Science: "Ciencia",
+        Shop: "Compras",
+        Sports: "Deportes",
+        Travel: "Viajes",
+        Weather: "Clima",
+        Auto: "Automovilismo",
+        Business: "Negocios",
+        Cooking: "Cocina",
+        Outdoor: "Aire Libre",
+        Series: "Series",
+        Undefined: "Otros",
+      };
+
+      // --- 2. PARSEADOR MEJORADO (Con Traducción Real) ---
+      function parseM3U(data) {
+        const lines = data.split("\n");
+        let currentChannel = {};
+
+        lines.forEach((line) => {
+          line = line.trim();
+          if (line.startsWith("#EXTINF:")) {
+            // 1. Obtener el Grupo crudo
+            let groupMatch = line.match(/group-title="([^"]*)"/);
+            let rawGroup =
+              groupMatch && groupMatch[1] ? groupMatch[1] : "Otros";
+
+            // 2. LIMPIEZA AGRESIVA:
+            // Cortamos por ';' y quitamos espacios extra
+            let primaryCategory = rawGroup.split(";")[0].trim();
+
+            // 3. TRADUCCIÓN:
+            // Buscamos la palabra exacta. Si no existe, la dejamos en inglés.
+            let cleanGroup =
+              categoryTranslations[primaryCategory] || primaryCategory;
+
+            // 4. CASOS MANUALES (Por si el diccionario falla en mayúsculas/minúsculas)
+            if (primaryCategory === "Movies") cleanGroup = "Películas";
+            if (primaryCategory === "Kids") cleanGroup = "Infantil";
+
+            // Extraer logo y nombre
+            let logoMatch = line.match(/tvg-logo="([^"]*)"/);
+            let nameParts = line.split(",");
+
+            currentChannel = {
+              name: nameParts[nameParts.length - 1].trim(),
+              group: cleanGroup,
+              logo: logoMatch ? logoMatch[1] : "",
+              url: "",
+            };
+          } else if (line.startsWith("http")) {
+            currentChannel.url = line;
+            if (currentChannel.name && currentChannel.url) {
+              allChannels.push(currentChannel);
+            }
+          }
+        });
+      }
+
+      // --- 3. RENDERIZAR PAÍSES ---
+      function renderCountries() {
+        const container = document.getElementById("cat-container");
+        // Limpiar todo excepto los botones fijos (Favs y Todos)
+        // Hack simple: buscar botones que no tengan ID y borrarlos
+        const oldBtns = container.querySelectorAll(
+          ".cat-btn:not(#btn-favs):not(#btn-all)"
+        );
+        oldBtns.forEach((b) => b.remove());
+
+        const groups = [...new Set(allChannels.map((c) => c.group))].sort();
+
+        groups.forEach((group) => {
+          let btn = document.createElement("button");
+          btn.className = "cat-btn";
+          btn.innerText = group;
+          btn.onclick = () => filterByCountry(group, btn);
+          container.appendChild(btn);
+        });
+      }
+
+      // --- 4. FILTRAR CANALES ---
+      function filterByCountry(group, btnElement) {
+        document
+          .querySelectorAll(".cat-btn")
+          .forEach((b) => b.classList.remove("active"));
+        if (btnElement) btnElement.classList.add("active");
+        else document.getElementById("btn-all").classList.add("active");
+
+        let filtered =
+          group === "all"
+            ? allChannels.slice(0, 200)
+            : allChannels.filter((c) => c.group === group);
+        renderChannelList(filtered);
+      }
+
+      function showFavorites() {
+        document
+          .querySelectorAll(".cat-btn")
+          .forEach((b) => b.classList.remove("active"));
+        document.getElementById("btn-favs").classList.add("active");
+
+        const favChannels = allChannels.filter((c) =>
+          favorites.includes(c.url)
+        );
+        if (favChannels.length === 0) {
+          document.getElementById("channel-container").innerHTML =
+            "<div style='padding:20px; text-align:center'>Sin favoritos aún.</div>";
+        } else {
+          renderChannelList(favChannels);
+        }
+      }
+
+      function renderChannelList(list) {
+        const container = document.getElementById("channel-container");
+        container.innerHTML = "";
+
+        list.forEach((channel) => {
+          let div = document.createElement("div");
+          div.className = "channel-item";
+          div.tabIndex = 0;
+
+          let isFav = favorites.includes(channel.url);
+          let starClass = isFav ? "fas fa-star is-fav" : "far fa-star";
+
+          div.innerHTML = `<span>${channel.name}</span> <i class="${starClass} fav-icon" onclick="toggleFav('${channel.url}', this, event)"></i>`;
+
+          div.onclick = (e) => {
+            if (!e.target.classList.contains("fav-icon")) {
+              playChannel(channel);
+              document
+                .querySelectorAll(".channel-item")
+                .forEach((i) => i.classList.remove("playing"));
+              div.classList.add("playing");
+            }
+          };
+
+          div.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") playChannel(channel);
+          });
+
+          container.appendChild(div);
+        });
+      }
+
+      function searchChannel() {
+        let query = document.getElementById("search-input").value.toLowerCase();
+        if (query.length < 2) return;
+        let results = allChannels.filter((c) =>
+          c.name.toLowerCase().includes(query)
+        );
+        renderChannelList(results);
+      }
+
+      function toggleFav(url, icon, event) {
+        event.stopPropagation();
+        if (favorites.includes(url)) {
+          favorites = favorites.filter((u) => u !== url);
+          icon.className = "far fa-star fav-icon";
+        } else {
+          favorites.push(url);
+          icon.className = "fas fa-star fav-icon is-fav";
+        }
+        localStorage.setItem("myFavs", JSON.stringify(favorites));
+      }
+
+      // --- 5. REPRODUCTOR ---
+      function playChannel(channel) {
+        document.getElementById("status-msg").innerText = "Cargando...";
+
+        // Info overlay
+        const overlay = document.getElementById("info-overlay");
+        document.getElementById("current-title").innerText = channel.name;
+        overlay.style.opacity = 1;
+        setTimeout(() => (overlay.style.opacity = 0), 4000);
+
+        if (Hls.isSupported()) {
+          if (hls) hls.destroy();
+          hls = new Hls();
+          hls.loadSource(channel.url);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, function () {
+            video.play();
+            document.getElementById("status-msg").innerText = "";
+          });
+          hls.on(Hls.Events.ERROR, function (event, data) {
+            if (data.fatal)
+              document.getElementById("status-msg").innerText =
+                "Error: Canal no disponible";
+          });
+        } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+          video.src = channel.url;
+          video.play();
+        }
+      }
+
+      // --- 6. PANTALLA COMPLETA (COMUNICACIÓN TOTAL) ---
+      function toggleFullScreen() {
+        var playerArea = document.getElementById("col-player");
+        var btnIcon = document.querySelector("#btn-fullscreen i");
+
+        // 1. CAMBIO INTERNO (Ocultar lista de canales y categorías)
+        if (!playerArea.classList.contains("falso-fullscreen")) {
+          playerArea.classList.add("falso-fullscreen");
+          btnIcon.classList.remove("fa-expand");
+          btnIcon.classList.add("fa-compress");
+        } else {
+          playerArea.classList.remove("falso-fullscreen");
+          btnIcon.classList.remove("fa-compress");
+          btnIcon.classList.add("fa-expand");
+        }
+
+        // 2. CAMBIO EXTERNO (Avisar a index.html para que esconda el menú rojo)
+        // Enviamos un mensaje al padre (window.parent)
+        window.parent.postMessage("toggleFullScreen", "*");
+      }
+
+      document
+        .getElementById("video")
+        .addEventListener("dblclick", toggleFullScreen);
+
+      // --- 7. NAVEGACIÓN TECLADO ---
+      document.addEventListener("keydown", (e) => {
+        const active = document.activeElement;
+        if (
+          document.getElementById("col-channels").contains(active) &&
+          e.keyCode === 37
+        ) {
+          document.querySelector(".cat-btn.active").focus();
+        }
+        if (
+          document.getElementById("col-categories").contains(active) &&
+          e.keyCode === 39
+        ) {
+          document.getElementById("search-input").focus();
+        }
+        if (
+          document.getElementById("col-channels").contains(active) &&
+          e.keyCode === 39
+        ) {
+          video.focus();
+        }
+      });
+    </script>
+  </body>
+</html>

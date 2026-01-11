@@ -265,5 +265,50 @@
         }
       });
     </script>
+
+    <a id="btn-wvc" href="#" target="_blank" onclick="abrirEnWVC(event)">
+        <div style="
+            position: fixed;
+            bottom: 80px; /* Un poco arriba para no tapar el menú */
+            left: 20px;
+            width: 60px;
+            height: 60px;
+            background-color: #f7b500; /* Color Amarillo WVC */
+            border-radius: 50%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            z-index: 99999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+            border: 2px solid white;
+            cursor: pointer;
+            transition: transform 0.2s;
+        ">
+            🚀
+        </div>
+    </a>
+
+    <script>
+        function abrirEnWVC(e) {
+            e.preventDefault();
+            
+            // 1. OBTENER TU URL ACTUAL AUTOMÁTICAMENTE
+            // Esto toma la dirección donde está alojada tu página (GitHub)
+            var currentUrl = window.location.href;
+            
+            // 2. CREAR EL ENLACE MÁGICO (Deep Link)
+            // El formato es: wvc-x-callback://open?url=[TU_PAGINA]
+            var wvcUrl = "wvc-x-callback://open?url=" + encodeURIComponent(currentUrl);
+            
+            // 3. INTENTAR ABRIR LA APP
+            window.location.href = wvcUrl;
+            
+            // 4. (Opcional) Si no tiene la app, podrías mandarlo a la Play Store
+            setTimeout(function() {
+                window.location.href = "https://play.google.com/store/apps/details?id=com.instantbits.cast.webvideo";
+            }, 2000);
+        }
+    </script>
   </body>
 </html>
